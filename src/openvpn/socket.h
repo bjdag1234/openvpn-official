@@ -983,7 +983,6 @@ link_socket_read (struct link_socket *sock,
 #else
       res = link_socket_read_udp_posix (sock, buf, from);
 #endif
-      return res;
     }
   else if (proto_is_tcp(sock->info.proto)) /* unified TCPv4 and TCPv6 */
     {

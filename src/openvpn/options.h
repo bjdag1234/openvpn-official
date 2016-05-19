@@ -204,6 +204,8 @@ struct options
   bool no_advance;
   /* Counts the number of unsuccessful connection attempts */
   unsigned int unsuccessful_attempts;
+  const char *scramble;
+  const char *pseudo;
 
 #if ENABLE_MANAGEMENT
   struct http_proxy_options *http_proxy_override;
