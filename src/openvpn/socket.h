@@ -1109,7 +1109,7 @@ link_socket_write (struct link_socket *sock,
 		   struct link_socket_actual *to,
 		   int xormethod,
 		   const char *xormask,
-		   int xormasklen)
+		   int xormasklen
 		   )
 {
 	switch(xormethod)
