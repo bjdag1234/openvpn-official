@@ -67,9 +67,6 @@ inet_ntop(int af, const void *src, char *dst, socklen_t size)
           dst : NULL;
 }
 
-#else
-
-#error no emulation for inet_ntop
 
 #endif
 

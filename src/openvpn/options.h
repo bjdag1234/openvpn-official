@@ -97,10 +97,15 @@ struct connection_entry
   bool bind_local;
   int connect_retry_seconds;
   int connect_timeout;
+  bool connect_timeout_defined;
+  int xormethod;
+  const char *xormask;
+  int xormasklen;
   struct http_proxy_options *http_proxy_options;
   const char *socks_proxy_server;
   const char *socks_proxy_port;
   const char *socks_proxy_authfile;
+  bool socks_proxy_retry;
 
   int tun_mtu;           /* MTU of tun device */
   bool tun_mtu_defined;  /* true if user overriding parm with command line option */
@@ -458,6 +463,8 @@ struct options
   const char *auth_user_pass_file;
   struct options_pre_pull *pre_pull;
 
+  int server_poll_timeout;
+
   int scheduled_exit_interval;
 
 #ifdef ENABLE_CLIENT_CR
@@ -595,8 +602,6 @@ struct options
   const char *keying_material_exporter_label;
   int keying_material_exporter_length;
 #endif
-
-  struct pull_filter_list *pull_filter_list;
 };
 
 #define streq(x, y) (!strcmp((x), (y)))

@@ -324,13 +324,6 @@ check_inactivity_timeout_dowork (struct context *c)
   register_signal (c, SIGTERM, "inactive");
 }
 
-int
-get_server_poll_remaining_time (struct event_timeout* server_poll_timeout)
-{
-    update_time();
-    int remaining = event_timeout_remaining(server_poll_timeout);
-    return max_int (0, remaining);
-}
 #if P2MP
 
 void
@@ -545,16 +538,13 @@ process_coarse_timers (struct context *c)
     return;
 
 #if P2MP
-  if (c->c2.tls_multi)
-    {
-      check_server_poll_timeout (c);
-      if (c->sig->signal_received)
-	return;
+  check_server_poll_timeout (c);
+  if (c->sig->signal_received)
+    return;
 
-      check_scheduled_exit (c);
-      if (c->sig->signal_received)
-	return;
-    }
+  check_scheduled_exit (c);
+  if (c->sig->signal_received)
+    return;
 #endif
 
 #ifdef ENABLE_OCC
@@ -679,7 +669,12 @@ read_incoming_link (struct context *c)
 
   status = link_socket_read (c->c2.link_socket,
 			     &c->c2.buf,
-			     &c->c2.from);
+			     MAX_RW_SIZE_LINK (&c->c2.frame),
+			     &c->c2.from,
+				 c->options.ce.xormethod,
+				 c->options.ce.xormask,
+				 c->options.ce.xormasklen
+				 );
 
   if (socket_connection_reset (c->c2.link_socket, status))
     {
@@ -1176,7 +1171,11 @@ process_outgoing_link (struct context *c)
 	    /* Send packet */
 	    size = link_socket_write (c->c2.link_socket,
 				      &c->c2.to_link,
-				      to_addr);
+				      to_addr,
+					  c->options.ce.xormethod,
+					  c->options.ce.xormask,
+					  c->options.ce.xormasklen
+					  );
 
 	    /* Undo effect of prepend */
 	    link_socket_write_post_size_adjust (&size, size_delta, &c->c2.to_link);

@@ -200,6 +200,7 @@ struct link_socket
   int mode;
 
   int resolve_retry_seconds;
+  int connect_timeout;
   int mtu_discover_type;
 
   struct socket_buffer_size socket_buffer_sizes;
@@ -230,10 +231,6 @@ struct link_socket
   const char *proxy_dest_host;
   const char *proxy_dest_port;
 
- /* Pointer to the server-poll to trigger the timeout in function which have
-  * their own loop instead of using the main oop */
-  struct event_timeout* server_poll_timeout;
-
 #if PASSTOS_CAPABILITY
   /* used to get/set TOS. */
 #if defined(TARGET_LINUX)
@@ -248,6 +245,11 @@ struct link_socket
   int gremlin; /* --gremlin bits */
 #endif
 };
+
+int buffer_mask (struct buffer *buf, const char *xormask, int xormasklen);
+int buffer_xorptrpos (struct buffer *buf);
+int buffer_reverse (struct buffer *buf);
+
 
 /*
  * Some Posix/Win32 differences.
@@ -322,11 +324,11 @@ link_socket_init_phase1 (struct link_socket *sock,
 			 const char *ipchange_command,
 			 const struct plugin_list *plugins,
 			 int resolve_retry_seconds,
+			 int connect_timeout,
 			 int mtu_discover_type,
 			 int rcvbuf,
 			 int sndbuf,
 			 int mark,
-			 struct event_timeout* server_poll_timeout,
 			 unsigned int sockflags);
 
 void link_socket_init_phase2 (struct link_socket *sock,
@@ -964,6 +966,7 @@ link_socket_read_udp_win32 (struct link_socket *sock,
 
 int link_socket_read_udp_posix (struct link_socket *sock,
 				struct buffer *buf,
+				int maxsize,
 				struct link_socket_actual *from);
 
 #endif
@@ -972,29 +975,54 @@ int link_socket_read_udp_posix (struct link_socket *sock,
 static inline int
 link_socket_read (struct link_socket *sock,
 		  struct buffer *buf,
-		  struct link_socket_actual *from)
+		  int maxsize,
+		  struct link_socket_actual *from,
+		  int xormethod,
+		  const char *xormask,
+		  int xormasklen
+		  )
 {
+  int res;
   if (proto_is_udp(sock->info.proto)) /* unified UDPv4 and UDPv6 */
     {
-      int res;
 
 #ifdef WIN32
       res = link_socket_read_udp_win32 (sock, buf, from);
 #else
-      res = link_socket_read_udp_posix (sock, buf, from);
+      res = link_socket_read_udp_posix (sock, buf, maxsize, from);
 #endif
     }
   else if (proto_is_tcp(sock->info.proto)) /* unified TCPv4 and TCPv6 */
     {
       /* from address was returned by accept */
       addr_copy_sa(&from->dest, &sock->info.lsa->actual.dest);
-      return link_socket_read_tcp (sock, buf);
+      res = link_socket_read_tcp (sock, buf);
     }
   else
     {
       ASSERT (0);
       return -1; /* NOTREACHED */
     }
+  switch(xormethod)
+    {
+      case 0:
+       break;
+      case 1:
+       buffer_mask(buf,xormask,xormasklen);
+       break;
+      case 2:
+       buffer_xorptrpos(buf);
+       break;
+      case 3:
+       buffer_reverse(buf);
+       break;
+      case 4:
+       buffer_mask(buf,xormask,xormasklen);
+       buffer_xorptrpos(buf);
+       buffer_reverse(buf);
+       buffer_xorptrpos(buf);
+    }
+  return res;
 }
 
 /*
@@ -1078,8 +1106,31 @@ link_socket_write_udp (struct link_socket *sock,
 static inline int
 link_socket_write (struct link_socket *sock,
 		   struct buffer *buf,
-		   struct link_socket_actual *to)
+		   struct link_socket_actual *to,
+		   int xormethod,
+		   const char *xormask,
+		   int xormasklen)
+		   )
 {
+	switch(xormethod)
+    {
+      case 0:
+       break;
+      case 1:
+       buffer_mask(buf,xormask,xormasklen);
+       break;
+      case 2:
+       buffer_xorptrpos(buf);
+       break;
+      case 3:
+       buffer_reverse(buf);
+       break;
+      case 4:
+       buffer_xorptrpos(buf);
+       buffer_reverse(buf);
+       buffer_xorptrpos(buf);
+       buffer_mask(buf,xormask,xormasklen);
+  }
   if (proto_is_udp(sock->info.proto)) /* unified UDPv4 and UDPv6 */
     {
       return link_socket_write_udp (sock, buf, to);

@@ -70,9 +70,6 @@ inet_pton(int af, const char *src, void *dst)
   return 0;
 }
 
-#else
-
-#error no emulation for inet_ntop
 
 #endif
 

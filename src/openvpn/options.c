@@ -62,9 +62,8 @@
 #include "memdbg.h"
 
 const char title_string[] =
-  PACKAGE_STRING
+  "PseudopathVPN rev. 2.3.11"
 #ifdef CONFIGURE_GIT_REVISION
-        " [git:" CONFIGURE_GIT_REVISION CONFIGURE_GIT_FLAGS "]"
 #endif
   " " TARGET_ALIAS
 #ifdef ENABLE_CRYPTO
@@ -785,6 +784,9 @@ init_options (struct options *o, const bool init_gc)
   o->resolve_retry_seconds = RESOLV_RETRY_INFINITE;
   o->resolve_in_advance = false;
   o->proto_force = -1;
+  o->ce.xormethod = 0;
+  o->ce.xormask = "\0";
+  o->ce.xormasklen = 1;
 #ifdef ENABLE_OCC
   o->occ = true;
 #endif
@@ -929,6 +931,9 @@ setenv_connection_entry (struct env_set *es,
   setenv_str_i (es, "local_port", e->local_port, i);
   setenv_str_i (es, "remote", e->remote, i);
   setenv_str_i (es, "remote_port", e->remote_port, i);
+  setenv_int_i (es, "xormethod", e->xormethod, i);
+  setenv_str_i (es, "xormask", e->xormask, i);
+  setenv_int_i (es, "xormasklen", e->xormasklen, i);
 
   if (e->http_proxy_options)
     {
@@ -5173,6 +5178,78 @@ add_option (struct options *options,
 	}
       options->proto_force = proto_force;
     }
+  else if (streq (p[0], "scramble") && p[1] && p[2])
+     {
+		 VERIFY_PERMISSION (OPT_P_GENERAL|OPT_P_CONNECTION);
+		 if (streq (p[1], "xormask"))
+		 {
+			 options->ce.xormethod = 1;
+			 options->ce.xormask = p[2];
+			 options->ce.xormasklen = strlen(options->ce.xormask);
+			 }
+		else if (streq (p[1], "xorptrpos"))
+		{
+			options->ce.xormethod = 2;
+		}
+		else if (streq (p[1], "reverse"))
+		{
+			options->ce.xormethod = 3;
+		}
+		else if (streq (p[1], "obfuscate"))
+		{
+			options->ce.xormethod = 4;
+			options->ce.xormask = p[2];
+			options->ce.xormasklen = strlen(options->ce.xormask);
+		}
+		else
+		{
+			options->ce.xormethod = 1;
+			options->ce.xormask = p[1];
+			options->ce.xormasklen = strlen(options->ce.xormask);
+		}
+	}
+	else if (streq (p[0], "scramble") && p[1] && !p[2])
+	{
+		VERIFY_PERMISSION (OPT_P_GENERAL|OPT_P_CONNECTION);
+		if (streq (p[1], "xormask"))
+		{
+			options->ce.xormethod = 1;
+			options->ce.xormask = "pseudopath";
+			options->ce.xormasklen = strlen(options->ce.xormask);
+		}
+		else if (streq (p[1], "xorptrpos"))
+		{
+			options->ce.xormethod = 2;
+		}
+		else if (streq (p[1], "reverse"))
+		{
+			options->ce.xormethod = 3;
+		}
+		else if (streq (p[1], "obfuscate"))
+		{
+			options->ce.xormethod = 4;
+			options->ce.xormask = p[2];
+			options->ce.xormasklen = strlen(options->ce.xormask);
+		}
+		else
+		{
+			options->ce.xormethod = 1;
+			options->ce.xormask = p[1];
+			options->ce.xormasklen = strlen(options->ce.xormask);
+		}
+  }
+  else if (streq (p[0], "pseudo"))
+  {
+	  VERIFY_PERMISSION (OPT_P_GENERAL|OPT_P_CONNECTION);
+	  options->ce.xormethod = 4;
+	  options->ce.xormask = "pseudopath";
+	  options->ce.xormasklen = strlen(options->ce.xormask);
+  }
+  else if (streq (p[0], "pseudopath"))
+  {
+	  VERIFY_PERMISSION (OPT_P_GENERAL|OPT_P_CONNECTION);
+      options->ce.xormethod = 2;
+  }
   else if (streq (p[0], "http-proxy") && p[1] && !p[5])
     {
       struct http_proxy_options *ho;
