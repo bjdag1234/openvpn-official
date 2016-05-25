@@ -74,6 +74,33 @@ int buffer_xorptrpos (struct buffer *buf) {
 }
 
 int buffer_reverse (struct buffer *buf) {
+/* This function has been rewritten for Tunnelblick. The buffer_reverse function at
+ * https://github.com/clayface/openvpn_xorpatch
+ * makes a copy of the buffer and it writes to the byte **after** the
+ * buffer contents, so if the buffer is full then it writes outside of the buffer.
+ * This rewritten version does neither.
+ *
+ * For interoperability, this rewritten version preserves the behavior of the original
+ * function: it does not modify the first character of the buffer. So it does not
+ * actually reverse the contents of the buffer. Instead, it changes 'abcde' to 'aedcb'.
+ * (Of course, the actual buffer contents are bytes, and not necessarily characters.)
+ */
+  int len = BLEN(buf);
+  if (  len > 2  ) {                           /* Leave '', 'a', and 'ab' alone */
+    int i;
+    uint8_t *b_start = BPTR (buf) + 1;         /* point to first byte to swap */
+    uint8_t *b_end   = BPTR (buf) + (len - 1); /* point to last byte to swap */
+    uint8_t tmp;
+    for (i = 0; i < (len-1)/2; i++, b_start++, b_end--) {
+      tmp = *b_start;
+      *b_start = *b_end;
+      *b_end = tmp;
+    }
+  }
+  return len;
+}
+/*
+int buffer_reverse (struct buffer *buf) {
 	int i;
 	int len=BLEN(buf);
 	uint8_t *b;
@@ -85,7 +112,9 @@ int buffer_reverse (struct buffer *buf) {
 		*b=cpy[i] ;
 	}
 	return BLEN (buf);
-}
+}*/
+
+
 
 
 /*
